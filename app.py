@@ -51,14 +51,6 @@ def get_model():
     model.eval()
     return model, device
 
-# 실행부
-try:
-    model, device = get_model()
-    st.success("✅ 모델 로드 성공! 이제 포켓몬 타입을 분류할 수 있어.")
-except Exception as e:
-    st.error(f"모델을 불러오는 중 에러 발생: {e}")
-    st.stop()
-
 # 2. 모델 로드 함수 (models.resnet18을 쓰려면 위에서 models를 임포트해야 해)
 def load_model(model_path, num_classes, device):
     model = models.resnet18() # 이제 'models'를 인식할 거야!
