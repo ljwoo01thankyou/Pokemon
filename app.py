@@ -20,15 +20,21 @@ idx_to_type = {i: t for i, t in enumerate(POKEMON_TYPES)}
 # 1. 모델 다운로드 함수
 def download_model():
     file_id = '1U8FWT5oLPl1Hn6Bd9sQxxnbQMCqoVwTI'
-    url = f'https://drive.google.com/uc?id={file_id}'
+    # gdown에서 권장하는 id 방식 사용
     output = 'pokemon_model.pt'
     
-    # 파일이 없을 때만 다운로드 진행
+    if not os.path.exists(output) or os.path.getsize(output) < 1000000: # 1MB보다 작으면 잘못된 파일로 간주
+        with st.spinner('구글 드라이브에서 모델(약 45MB)을 내려받는 중... 잠시만 기다려줘!'):
+            # fuzzy=True를 주면 링크에서 ID를 더 잘 찾아내
+            url = f'https://drive.google.com/uc?id={file_id}'
+            gdown.download(url, output, quiet=False, fuzzy=True)
+            
+    # 다운로드 후 파일이 정말 있는지 최종 확인
     if not os.path.exists(output):
-        with st.spinner('구글 드라이브에서 모델을 가져오고 있어. 잠시만 기다려줘...'):
-            gdown.download(url, output, quiet=False)
+        st.error("모델 파일 다운로드에 실패했어. 구글 드라이브 공유 권한을 다시 확인해봐!")
+        st.stop() # 여기서 멈춰서 다음 에러(torch.load)가 안 나게 함
+        
     return output
-
 # 2. 모델 구조 정의 및 로드 함수
 def load_model(model_path, num_classes, device):
     model = models.resnet18()
