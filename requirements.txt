@@ -1,7 +1,7 @@
+streamlit>=1.35.0
+altair<5
 torch
 torchvision
-Pillow
+pillow
 pandas
-streamlit
-gdown
-altair<5
+gdown>=5.1.0
