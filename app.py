@@ -1,10 +1,7 @@
 import streamlit as st
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-from PIL import Image
 import os
 import gdown
+import torch
 
 # 1. 포켓몬 타입 리스트 직접 정의 (알파벳 순서대로!)
 # 학습 데이터에 있던 모든 타입을 정확한 스펠링으로 적어줘야 해.
@@ -20,21 +17,31 @@ idx_to_type = {i: t for i, t in enumerate(POKEMON_TYPES)}
 # 1. 모델 다운로드 함수
 def download_model():
     file_id = '1U8FWT5oLPl1Hn6Bd9sQxxnbQMCqoVwTI'
-    # gdown에서 권장하는 id 방식 사용
+    url = f'https://drive.google.com/uc?id={file_id}'
     output = 'pokemon_model.pt'
     
-    if not os.path.exists(output) or os.path.getsize(output) < 1000000: # 1MB보다 작으면 잘못된 파일로 간주
-        with st.spinner('구글 드라이브에서 모델(약 45MB)을 내려받는 중... 잠시만 기다려줘!'):
-            # fuzzy=True를 주면 링크에서 ID를 더 잘 찾아내
-            url = f'https://drive.google.com/uc?id={file_id}'
-            gdown.download(url, output, quiet=False, fuzzy=True)
-            
-    # 다운로드 후 파일이 정말 있는지 최종 확인
+    # 1. 파일이 아예 없거나, 너무 작은 경우(다운로드 실패 시 생기는 찌꺼기 파일) 삭제 후 재시도
+    if os.path.exists(output):
+        if os.path.getsize(output) < 1000000: # 1MB 미만이면 비정상 파일로 간주
+            os.remove(output)
+
     if not os.path.exists(output):
-        st.error("모델 파일 다운로드에 실패했어. 구글 드라이브 공유 권한을 다시 확인해봐!")
-        st.stop() # 여기서 멈춰서 다음 에러(torch.load)가 안 나게 함
+        with st.spinner('모델 파일을 구글 드라이브에서 가져오는 중... (약 1분 소요)'):
+            try:
+                # fuzzy=True는 링크 형식이 복잡해도 ID를 잘 찾아내게 해줘
+                gdown.download(url, output, quiet=False, fuzzy=True)
+            except Exception as e:
+                st.error(f"다운로드 중 에러 발생: {e}")
+                st.stop()
+
+    # 2. 다운로드 직후 파일이 진짜 있는지 재검토
+    if not os.path.exists(output):
+        st.error("파일이 존재하지 않아! 구글 드라이브 권한 설정을 '링크가 있는 모든 사용자'로 바꿨는지 꼭 확인해줘.")
+        st.info("현재 폴더 내 파일 목록: " + str(os.listdir('.'))) # 디버깅용
+        st.stop()
         
     return output
+
 # 2. 모델 구조 정의 및 로드 함수
 def load_model(model_path, num_classes, device):
     model = models.resnet18()
