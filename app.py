@@ -2,7 +2,40 @@ import streamlit as st
 import os
 import gdown
 import torch
+import torch.nn as nn
+from torchvision import models, transforms  # <--- 이 줄이 빠져서 에러가 난 거야!
+from PIL import Image
 
+# 1. 모델 다운로드 함수 (아까 만든 거 그대로)
+def download_model():
+    file_id = '1U8FWT5oLPl1Hn6Bd9sQxxnbQMCqoVwTI'
+    url = f'https://drive.google.com/uc?id={file_id}'
+    output = 'pokemon_model.pt'
+    
+    if os.path.exists(output):
+        if os.path.getsize(output) < 1000000:
+            os.remove(output)
+
+    if not os.path.exists(output):
+        with st.spinner('모델 파일을 가져오는 중...'):
+            try:
+                gdown.download(url, output, quiet=False, fuzzy=True)
+            except Exception as e:
+                st.error(f"다운로드 에러: {e}")
+                st.stop()
+    return output
+
+# 2. 모델 로드 함수 (models.resnet18을 쓰려면 위에서 models를 임포트해야 해)
+def load_model(model_path, num_classes, device):
+    model = models.resnet18() # 이제 'models'를 인식할 거야!
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
+    model.eval()
+    return model
+
+# ... (이후 타입 리스트와 UI 코드는 동일)
 # 1. 포켓몬 타입 리스트 직접 정의 (알파벳 순서대로!)
 # 학습 데이터에 있던 모든 타입을 정확한 스펠링으로 적어줘야 해.
 POKEMON_TYPES = [
@@ -13,34 +46,6 @@ POKEMON_TYPES = [
 
 # 인덱스를 타입 이름으로 바꾸기 위한 딕셔너리
 idx_to_type = {i: t for i, t in enumerate(POKEMON_TYPES)}
-
-# 1. 모델 다운로드 함수
-def download_model():
-    file_id = '1U8FWT5oLPl1Hn6Bd9sQxxnbQMCqoVwTI'
-    url = f'https://drive.google.com/uc?id={file_id}'
-    output = 'pokemon_model.pt'
-    
-    # 1. 파일이 아예 없거나, 너무 작은 경우(다운로드 실패 시 생기는 찌꺼기 파일) 삭제 후 재시도
-    if os.path.exists(output):
-        if os.path.getsize(output) < 1000000: # 1MB 미만이면 비정상 파일로 간주
-            os.remove(output)
-
-    if not os.path.exists(output):
-        with st.spinner('모델 파일을 구글 드라이브에서 가져오는 중... (약 1분 소요)'):
-            try:
-                # fuzzy=True는 링크 형식이 복잡해도 ID를 잘 찾아내게 해줘
-                gdown.download(url, output, quiet=False, fuzzy=True)
-            except Exception as e:
-                st.error(f"다운로드 중 에러 발생: {e}")
-                st.stop()
-
-    # 2. 다운로드 직후 파일이 진짜 있는지 재검토
-    if not os.path.exists(output):
-        st.error("파일이 존재하지 않아! 구글 드라이브 권한 설정을 '링크가 있는 모든 사용자'로 바꿨는지 꼭 확인해줘.")
-        st.info("현재 폴더 내 파일 목록: " + str(os.listdir('.'))) # 디버깅용
-        st.stop()
-        
-    return output
 
 # 2. 모델 구조 정의 및 로드 함수
 def load_model(model_path, num_classes, device):
